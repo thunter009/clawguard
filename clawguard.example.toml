@@ -1,0 +1,75 @@
+# ============================================
+# ClawGuard Configuration Example
+# Copy to clawguard.toml and edit as needed
+# ============================================
+
+[general]
+bind_address = "127.0.0.1"
+bind_port = 18800
+upstream_host = "127.0.0.1"
+upstream_port = 18789
+
+[proxy]
+# WebSocket origin validation (mitigates CVE-2026-25253)
+validate_origin = true
+allowed_origins = ["http://localhost", "http://127.0.0.1", "https://localhost", "https://127.0.0.1"]
+block_missing_origin = true
+protect_tokens = true
+max_connections = 50
+connection_timeout_secs = 30
+
+[scanner]
+enabled = true
+skills_directory = "~/.openclaw/skills"
+block_dangerous = true
+max_skill_size_bytes = 5000000
+block_obfuscated = true
+
+# Dangerous command patterns (regex)
+dangerous_patterns = [
+    "curl\\s+.*-[dX]",
+    "wget\\s+.*\\|.*sh",
+    "eval\\s*\\(",
+    "exec\\s*\\(",
+    "child_process",
+    "subprocess\\.",
+    "os\\.system\\s*\\(",
+    "Runtime\\.getRuntime\\(\\)\\.exec",
+    "powershell\\s+-e",
+    "rm\\s+-rf\\s+/",
+    "chmod\\s+777",
+    "\\.ssh/",
+    "id_rsa",
+    "/etc/passwd",
+    "/etc/shadow",
+]
+
+# Data exfiltration patterns (regex)
+exfiltration_patterns = [
+    "curl\\s+.*https?://[^/]*\\.(ru|cn|tk|ml|ga|cf)/",
+    "curl\\s+.*-d\\s+.*\\$\\(.*\\)",
+    "nc\\s+-e",
+    "ncat\\s+.*-e",
+    "/dev/tcp/",
+    "base64\\s+-d\\s*\\|.*sh",
+    "php\\s+-r\\s+.*fsockopen",
+    "python.*socket\\.connect",
+    "\\.onion",
+]
+
+[limiter]
+enabled = true
+max_tokens_per_request = 50000
+max_tokens_per_minute = 200000
+max_tokens_per_hour = 2000000
+max_cost_per_day_usd = 10.0
+cost_per_1k_input_tokens = 0.015
+cost_per_1k_output_tokens = 0.075
+alert_threshold_percent = 75.0
+
+[logger]
+level = "info"
+log_file = "/var/log/clawguard/clawguard.log"
+log_blocked = true
+log_frames = false
+log_costs = true
