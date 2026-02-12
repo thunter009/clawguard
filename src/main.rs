@@ -3,6 +3,7 @@ mod proxy;
 mod scanner;
 mod limiter;
 mod logger;
+mod server;
 
 use clap::{Parser, Subcommand};
 use config::Config;
@@ -144,9 +145,8 @@ fn cmd_start(config_path: &PathBuf) {
         "Starting ClawGuard"
     );
 
-    let _guard = WebSocketGuard::new(config.proxy.clone());
+    // Scanner is init-only (used by scan commands); guard + limiter live inside server state
     let _scanner = SkillScanner::new(config.scanner.clone());
-    let _limiter = CostLimiter::new(config.limiter.clone());
 
     println!("  WebSocket origin validation: {}", if config.proxy.validate_origin { "ACTIVE" } else { "disabled" });
     println!("  Skill scanner: {}", if config.scanner.enabled { "ACTIVE" } else { "disabled" });
@@ -157,10 +157,23 @@ fn cmd_start(config_path: &PathBuf) {
     println!("  Proxying to {}:{}", config.general.upstream_host, config.general.upstream_port);
     println!();
 
+    let bind_addr = format!("{}:{}", config.general.bind_address, config.general.bind_port);
+    let app = server::router(&config);
+
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        tokio::signal::ctrl_c().await.expect("Failed to listen for Ctrl+C");
-        info!("Shutting down ClawGuard...");
+        let listener = tokio::net::TcpListener::bind(&bind_addr)
+            .await
+            .unwrap_or_else(|e| panic!("Failed to bind {}: {}", bind_addr, e));
+        info!("Listening on {}", bind_addr);
+
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async {
+                tokio::signal::ctrl_c().await.ok();
+                info!("Shutting down ClawGuard...");
+            })
+            .await
+            .expect("Server error");
     });
 }
 
