@@ -10,7 +10,28 @@ pub struct Config {
     pub scanner: ScannerConfig,
     pub limiter: LimiterConfig,
     pub logger: LoggerConfig,
+    #[serde(default)]
+    pub content_scan: Option<ContentScanConfig>,
 }
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ContentScanConfig {
+    pub enabled: bool,
+    pub model: String,
+    pub endpoint: String,
+    pub corpus_file: String,
+    #[serde(default = "default_allowlist")]
+    pub allowlist_file: String,
+    #[serde(default = "default_threshold")]
+    pub similarity_threshold: f64,
+    #[serde(default = "default_action")]
+    pub action: String,
+    pub log_file: Option<String>,
+}
+
+fn default_allowlist() -> String { String::new() }
+fn default_threshold() -> f64 { 0.55 }
+fn default_action() -> String { "flag".to_string() }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct GeneralConfig {
@@ -174,6 +195,7 @@ impl Config {
                 log_frames: false,
                 log_costs: true,
             },
+            content_scan: None,
         }
     }
 

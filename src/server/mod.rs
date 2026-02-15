@@ -1,12 +1,13 @@
 use crate::config::Config;
 use crate::limiter::{CostLimiter, LimitResult};
 use crate::proxy::{RequestInfo, ValidationResult, WebSocketGuard};
+use crate::scanner::content::{ContentScanner, ScanRequest};
 
 use axum::body::Body;
 use axum::extract::State;
 use axum::http::{Request, Response, StatusCode, Uri};
 use axum::response::IntoResponse;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
@@ -20,6 +21,7 @@ pub struct AppState {
     pub upstream_host: String,
     pub upstream_port: u16,
     pub client: Client<hyper_util::client::legacy::connect::HttpConnector, Body>,
+    pub content_scanner: Option<ContentScanner>,
 }
 
 /// Build the axum router with all middleware and handlers
@@ -28,26 +30,55 @@ pub fn router(config: &Config) -> Router {
     let limiter = CostLimiter::new(config.limiter.clone());
     let client = Client::builder(TokioExecutor::new()).build_http();
 
+    let content_scanner = config
+        .content_scan
+        .as_ref()
+        .filter(|cs| cs.enabled)
+        .map(|cs| ContentScanner::new(cs.clone()));
+
     let state = Arc::new(AppState {
         guard,
         limiter,
         upstream_host: config.general.upstream_host.clone(),
         upstream_port: config.general.upstream_port,
         client,
+        content_scanner,
     });
 
     Router::new()
         .route("/health", get(health))
+        .route("/scan", post(scan_content))
         .fallback(proxy_handler)
         .with_state(state)
 }
 
 /// GET /health — bypasses all middleware
-async fn health() -> impl IntoResponse {
+async fn health(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     axum::Json(serde_json::json!({
         "status": "ok",
-        "service": "clawguard"
+        "version": "0.1.0",
+        "scanner": state.content_scanner.is_some(),
+        "limiter": true
     }))
+}
+
+/// POST /scan — embedding-based injection detection
+async fn scan_content(
+    State(state): State<Arc<AppState>>,
+    axum::Json(req): axum::Json<ScanRequest>,
+) -> impl IntoResponse {
+    let scanner = match &state.content_scanner {
+        Some(s) => s,
+        None => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                axum::Json(serde_json::json!({"error": "content scanner not configured"})),
+            );
+        }
+    };
+
+    let result = scanner.scan(&req).await;
+    (StatusCode::OK, axum::Json(serde_json::json!(result)))
 }
 
 /// Fallback handler: origin validation → cost limiting → reverse proxy

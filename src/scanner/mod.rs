@@ -1,3 +1,5 @@
+pub mod content;
+
 use crate::config::ScannerConfig;
 use regex::Regex;
 use sha2::{Digest, Sha256};
