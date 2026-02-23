@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Validate commit message follows conventional-commit format:
+#   <type>(<scope>): <subject>
+#   <type>: <subject>
+#
+# Rules:
+#   - type: feat|fix|docs|chore|refactor|test|ci
+#   - scope: optional, lowercase alphanumeric + hyphens
+#   - subject: lowercase first char, no trailing period, <=72 chars first line
+
+set -euo pipefail
+
+commit_msg_file="$1"
+first_line=$(head -n1 "$commit_msg_file")
+
+# Skip merge commits
+if echo "$first_line" | grep -qE '^Merge '; then
+  exit 0
+fi
+
+# Pattern: type(scope): subject  OR  type: subject
+pattern='^(feat|fix|docs|chore|refactor|test|ci)(\([a-z0-9-]+\))?: .+'
+
+if ! echo "$first_line" | grep -qE "$pattern"; then
+  echo "ERROR: commit message must match: <type>(<scope>): <subject>" >&2
+  echo "  types: feat|fix|docs|chore|refactor|test|ci" >&2
+  echo "  example: feat(scanner): add SSRF pattern detection" >&2
+  exit 1
+fi
+
+# Check line length
+len=${#first_line}
+if [ "$len" -gt 72 ]; then
+  echo "ERROR: first line is $len chars (max 72)" >&2
+  exit 1
+fi
