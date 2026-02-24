@@ -12,6 +12,8 @@ pub struct Config {
     pub logger: LoggerConfig,
     #[serde(default)]
     pub content_scan: Option<ContentScanConfig>,
+    #[serde(default)]
+    pub source_routing: Option<SourceRoutingConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -29,9 +31,40 @@ pub struct ContentScanConfig {
     pub log_file: Option<String>,
 }
 
-fn default_allowlist() -> String { String::new() }
-fn default_threshold() -> f64 { 0.55 }
-fn default_action() -> String { "flag".to_string() }
+fn default_allowlist() -> String {
+    String::new()
+}
+fn default_threshold() -> f64 {
+    0.55
+}
+fn default_action() -> String {
+    "flag".to_string()
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SourceRoutingConfig {
+    pub enabled: bool,
+    #[serde(default = "default_source_routing_model")]
+    pub default_model: String,
+    #[serde(default)]
+    pub external: Option<SourceRuleConfig>,
+    #[serde(default)]
+    pub internal: Option<SourceRuleConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SourceRuleConfig {
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub min_model: Option<String>,
+    #[serde(default)]
+    pub sources: Vec<String>,
+}
+
+fn default_source_routing_model() -> String {
+    "anthropic/claude-haiku-4-5".to_string()
+}
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct GeneralConfig {
@@ -196,6 +229,7 @@ impl Config {
                 log_costs: true,
             },
             content_scan: None,
+            source_routing: None,
         }
     }
 

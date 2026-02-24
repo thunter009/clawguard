@@ -3,7 +3,7 @@ use crate::limiter::{CostLimiter, LimitResult};
 use crate::proxy::{RequestInfo, ValidationResult, WebSocketGuard};
 use crate::scanner::content::{ContentScanner, ScanRequest};
 
-use axum::body::Body;
+use axum::body::{Body, Bytes};
 use axum::extract::State;
 use axum::http::{Request, Response, StatusCode, Uri};
 use axum::response::IntoResponse;
@@ -11,6 +11,7 @@ use axum::routing::{get, post};
 use axum::Router;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
+use serde::Deserialize;
 use std::sync::Arc;
 use tracing::{info, warn};
 
@@ -22,6 +23,7 @@ pub struct AppState {
     pub upstream_port: u16,
     pub client: Client<hyper_util::client::legacy::connect::HttpConnector, Body>,
     pub content_scanner: Option<ContentScanner>,
+    pub source_routing: Option<crate::config::SourceRoutingConfig>,
 }
 
 /// Build the axum router with all middleware and handlers
@@ -43,11 +45,13 @@ pub fn router(config: &Config) -> Router {
         upstream_port: config.general.upstream_port,
         client,
         content_scanner,
+        source_routing: config.source_routing.clone(),
     });
 
     Router::new()
         .route("/health", get(health))
         .route("/scan", post(scan_content))
+        .route("/route", post(route_model))
         .fallback(proxy_handler)
         .with_state(state)
 }
@@ -79,6 +83,100 @@ async fn scan_content(
 
     let result = scanner.scan(&req).await;
     (StatusCode::OK, axum::Json(serde_json::json!(result)))
+}
+
+#[derive(Debug, Deserialize)]
+struct RouteRequest {
+    source: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct RouteDecision {
+    model: String,
+    reason: &'static str,
+}
+
+fn resolve_model_for_source(
+    source_routing: Option<&crate::config::SourceRoutingConfig>,
+    source: &str,
+) -> RouteDecision {
+    let mut decision = RouteDecision {
+        model: "anthropic/claude-haiku-4-5".to_string(),
+        reason: "default",
+    };
+
+    let Some(routing) = source_routing else {
+        return decision;
+    };
+
+    if !routing.enabled {
+        return decision;
+    }
+
+    decision.model = routing.default_model.clone();
+    decision.reason = "default_model";
+
+    if let Some(external) = &routing.external {
+        if external
+            .sources
+            .iter()
+            .any(|candidate| candidate.eq_ignore_ascii_case(source))
+        {
+            if let Some(min_model) = &external.min_model {
+                decision.model = min_model.clone();
+                decision.reason = "external_min_model";
+                return decision;
+            }
+
+            if let Some(model) = &external.model {
+                decision.model = model.clone();
+                decision.reason = "external_model";
+                return decision;
+            }
+        }
+    }
+
+    if let Some(internal) = &routing.internal {
+        if internal
+            .sources
+            .iter()
+            .any(|candidate| candidate.eq_ignore_ascii_case(source))
+        {
+            if let Some(model) = &internal.model {
+                decision.model = model.clone();
+                decision.reason = "internal_model";
+            }
+        }
+    }
+
+    decision
+}
+
+/// POST /route - source-aware model routing decision
+async fn route_model(
+    State(state): State<Arc<AppState>>,
+    body: Bytes,
+) -> impl IntoResponse {
+    let req: RouteRequest = match serde_json::from_slice(&body) {
+        Ok(value) => value,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({"error": "invalid_json"})),
+            );
+        }
+    };
+
+    let decision = resolve_model_for_source(state.source_routing.as_ref(), &req.source);
+
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "source": req.source,
+            "model": decision.model,
+            "reason": decision.reason,
+        })),
+    )
 }
 
 /// Fallback handler: origin validation → cost limiting → reverse proxy
@@ -188,5 +286,99 @@ async fn proxy_handler(
                 ))
                 .unwrap()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{resolve_model_for_source, RouteDecision};
+    use crate::config::{SourceRoutingConfig, SourceRuleConfig};
+
+    fn routing_config() -> SourceRoutingConfig {
+        SourceRoutingConfig {
+            enabled: true,
+            default_model: "anthropic/claude-haiku-4-5".to_string(),
+            external: Some(SourceRuleConfig {
+                model: None,
+                min_model: Some("anthropic/claude-opus-4-6".to_string()),
+                sources: vec!["email".to_string(), "webhook".to_string()],
+            }),
+            internal: Some(SourceRuleConfig {
+                model: Some("anthropic/claude-haiku-4-5".to_string()),
+                min_model: None,
+                sources: vec!["cron".to_string(), "heartbeat".to_string()],
+            }),
+        }
+    }
+
+    #[test]
+    fn external_source_uses_opus_min_model() {
+        let config = routing_config();
+        let decision = resolve_model_for_source(Some(&config), "email");
+
+        assert_eq!(
+            decision,
+            RouteDecision {
+                model: "anthropic/claude-opus-4-6".to_string(),
+                reason: "external_min_model",
+            }
+        );
+    }
+
+    #[test]
+    fn internal_source_uses_internal_model() {
+        let config = routing_config();
+        let decision = resolve_model_for_source(Some(&config), "cron");
+
+        assert_eq!(
+            decision,
+            RouteDecision {
+                model: "anthropic/claude-haiku-4-5".to_string(),
+                reason: "internal_model",
+            }
+        );
+    }
+
+    #[test]
+    fn unknown_source_uses_default_model() {
+        let config = routing_config();
+        let decision = resolve_model_for_source(Some(&config), "local_file");
+
+        assert_eq!(
+            decision,
+            RouteDecision {
+                model: "anthropic/claude-haiku-4-5".to_string(),
+                reason: "default_model",
+            }
+        );
+    }
+
+    #[test]
+    fn disabled_routing_falls_back_to_hard_default() {
+        let mut config = routing_config();
+        config.enabled = false;
+
+        let decision = resolve_model_for_source(Some(&config), "email");
+
+        assert_eq!(
+            decision,
+            RouteDecision {
+                model: "anthropic/claude-haiku-4-5".to_string(),
+                reason: "default",
+            }
+        );
+    }
+
+    #[test]
+    fn missing_routing_falls_back_to_hard_default() {
+        let decision = resolve_model_for_source(None, "email");
+
+        assert_eq!(
+            decision,
+            RouteDecision {
+                model: "anthropic/claude-haiku-4-5".to_string(),
+                reason: "default",
+            }
+        );
     }
 }
