@@ -1,3 +1,8 @@
+//! Static analysis scanner for skill files.
+//!
+//! Detects dangerous commands, data exfiltration patterns, obfuscated
+//! payloads, and credential harvesting via regex-based heuristics.
+
 pub mod content;
 
 use crate::config::ScannerConfig;
@@ -7,22 +12,35 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{warn};
 
+/// Result of scanning a single skill file or directory.
 #[derive(Debug, Clone)]
 pub struct ScanResult {
+    /// Absolute path to the scanned skill.
     pub skill_path: String,
+    /// Human-readable skill name (file or directory basename).
     pub skill_name: String,
+    /// SHA-256 digest of the skill content.
     pub sha256: String,
+    /// Total size in bytes.
     pub size_bytes: u64,
+    /// Overall security verdict.
     pub verdict: ScanVerdict,
+    /// Individual security findings.
     pub findings: Vec<Finding>,
 }
 
+/// Aggregate security verdict for a scanned skill.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScanVerdict {
+    /// No security issues found.
     Clean,
+    /// Non-critical findings that warrant review.
     Suspicious,
+    /// Critical findings — skill should be blocked.
     Malicious,
+    /// File exceeds the configured size limit.
     Oversized,
+    /// An I/O or processing error occurred.
     Error(String),
 }
 
@@ -38,15 +56,22 @@ impl std::fmt::Display for ScanVerdict {
     }
 }
 
+/// A single security finding within a scanned file.
 #[derive(Debug, Clone)]
 pub struct Finding {
+    /// How severe this finding is.
     pub severity: Severity,
+    /// Classification of the finding.
     pub category: FindingCategory,
+    /// Human-readable explanation.
     pub description: String,
+    /// Source line where the match was found, if applicable.
     pub line_number: Option<usize>,
+    /// The text that triggered the match.
     pub matched_text: String,
 }
 
+/// Finding severity level, ordered from lowest to highest.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(dead_code)]
 pub enum Severity {
@@ -69,6 +94,7 @@ impl std::fmt::Display for Severity {
     }
 }
 
+/// Classification of a security finding.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum FindingCategory {
@@ -97,6 +123,7 @@ impl std::fmt::Display for FindingCategory {
     }
 }
 
+/// Regex-based static analyzer for skill files and directories.
 pub struct SkillScanner {
     config: ScannerConfig,
     dangerous_regexes: Vec<(Regex, String)>,
@@ -105,6 +132,7 @@ pub struct SkillScanner {
 }
 
 impl SkillScanner {
+    /// Create a new scanner from config, compiling all regex patterns.
     pub fn new(config: ScannerConfig) -> Self {
         let dangerous_regexes = config
             .dangerous_patterns
@@ -191,6 +219,7 @@ impl SkillScanner {
         }
     }
 
+    /// Scan a single skill file or directory, returning findings and a verdict.
     pub fn scan_skill<P: AsRef<Path>>(&self, path: P) -> ScanResult {
         let path = path.as_ref();
         let skill_name = path
@@ -414,6 +443,7 @@ impl SkillScanner {
         files
     }
 
+    /// Scan every skill in the configured skills directory.
     pub fn scan_all_skills(&self) -> Vec<ScanResult> {
         let dir = Path::new(&self.config.skills_directory);
         if !dir.exists() {
@@ -429,6 +459,7 @@ impl SkillScanner {
         results
     }
 
+    /// Format a scan result as a human-readable ASCII report.
     pub fn format_report(result: &ScanResult) -> String {
         let mut r = String::new();
         let sep = "+--------------------------------------------------+";

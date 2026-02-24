@@ -1,3 +1,5 @@
+//! Logging initialization and structured security audit events.
+
 use crate::config::LoggerConfig;
 use tracing_subscriber::{fmt, EnvFilter};
 

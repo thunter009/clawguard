@@ -1,34 +1,52 @@
+//! Embedding-based content scanner for prompt-injection detection.
+//!
+//! Compares incoming text against a pre-embedded corpus of known-bad
+//! patterns using cosine similarity, powered by a local Ollama model.
+
 use crate::config::ContentScanConfig;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tracing::{info, warn};
 
+/// A single labeled embedding in the known-bad corpus.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorpusEntry {
+    /// Descriptive label for this pattern (e.g. "prompt injection").
     pub label: String,
+    /// Pre-computed embedding vector.
     pub embedding: Vec<f64>,
 }
 
+/// Incoming content scan request (POST /scan body).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanRequest {
+    /// The text to scan for injection patterns.
     pub content: String,
+    /// Optional source identifier for allowlist matching.
     #[serde(default)]
     pub source: String,
 }
 
+/// Result of an embedding-based content scan.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanResponse {
+    /// Highest cosine similarity score against the corpus.
     pub score: f64,
+    /// Whether the score exceeded the configured threshold.
     pub flagged: bool,
+    /// Action taken: `"allow"`, `"flag"`, or `"block"`.
     pub action: String,
+    /// Label of the closest corpus entry, if any.
     pub matched_pattern: Option<String>,
 }
 
+/// Raw embedding response from the Ollama API.
 #[derive(Debug, Deserialize)]
 struct OllamaEmbedResponse {
     embedding: Vec<f64>,
 }
 
+/// Embedding-based content scanner backed by a local Ollama model.
 pub struct ContentScanner {
     config: ContentScanConfig,
     corpus: Vec<CorpusEntry>,
@@ -37,6 +55,7 @@ pub struct ContentScanner {
 }
 
 impl ContentScanner {
+    /// Create a scanner, loading corpus and allowlist from disk.
     pub fn new(config: ContentScanConfig) -> Self {
         let corpus = Self::load_corpus(&config.corpus_file);
         let allowlist = Self::load_allowlist(&config.allowlist_file);
@@ -76,6 +95,7 @@ impl ContentScanner {
         }
     }
 
+    /// Scan content by embedding it and comparing against the corpus.
     pub async fn scan(&self, req: &ScanRequest) -> ScanResponse {
         // Check allowlist
         if !req.source.is_empty() && self.allowlist.iter().any(|a| req.source.contains(a)) {
@@ -186,6 +206,7 @@ impl ContentScanner {
     }
 }
 
+/// Compute cosine similarity between two vectors. Returns 0.0 on dimension mismatch.
 fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;
