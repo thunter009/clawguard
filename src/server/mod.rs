@@ -1,3 +1,6 @@
+//! Axum HTTP server — health check, content scan, model routing, and
+//! reverse proxy with origin validation and cost limiting.
+
 use crate::config::Config;
 use crate::limiter::{CostLimiter, LimitResult};
 use crate::proxy::{RequestInfo, ValidationResult, WebSocketGuard};

@@ -1,3 +1,7 @@
+//! Token-aware API cost limiter with per-request, per-minute, per-hour,
+//! and daily-budget enforcement. Also tracks per-job spending to detect
+//! wasteful cron patterns.
+
 use crate::config::LimiterConfig;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -89,6 +93,7 @@ pub enum LimitResult {
     },
 }
 
+/// Specific reason a request was rate-limited.
 #[derive(Debug, Clone)]
 pub enum LimitReason {
     RequestTooLarge { tokens: u64, max: u64 },
@@ -121,6 +126,7 @@ impl std::fmt::Display for LimitReason {
 }
 
 impl CostLimiter {
+    /// Create a new limiter with all counters zeroed.
     pub fn new(config: LimiterConfig) -> Self {
         Self {
             config,
@@ -323,7 +329,7 @@ impl CostLimiter {
         }
     }
 
-    /// Get top cost-consuming jobs
+    /// Get the top `n` cost-consuming jobs as `(job_id, cost_usd, request_count)`.
     pub fn top_jobs(&self, n: usize) -> Vec<(String, f64, u64)> {
         let mut jobs: Vec<_> = self
             .job_costs
@@ -339,6 +345,7 @@ impl CostLimiter {
     }
 }
 
+/// Snapshot of current limiter usage statistics.
 #[derive(Debug, Clone)]
 pub struct CostStats {
     pub daily_cost_usd: f64,

@@ -1,3 +1,6 @@
+//! WebSocket security proxy — origin validation, token-leak prevention,
+//! connection limiting, and suspicious-header detection.
+
 use crate::config::ProxyConfig;
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -11,6 +14,7 @@ pub enum ValidationResult {
     Blocked(BlockReason),
 }
 
+/// Reason a request was blocked by the proxy.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum BlockReason {
@@ -52,6 +56,7 @@ pub struct WebSocketGuard {
 }
 
 impl WebSocketGuard {
+    /// Create a new guard with the given proxy configuration.
     pub fn new(config: ProxyConfig) -> Self {
         Self {
             config,

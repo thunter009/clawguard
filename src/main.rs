@@ -1,3 +1,8 @@
+//! ClawGuard — security gateway for OpenClaw.
+//!
+//! Provides WebSocket origin validation, skill scanning, API cost
+//! limiting, content-injection detection, and source-based model routing.
+
 mod config;
 mod proxy;
 mod scanner;
@@ -117,6 +122,7 @@ fn main() {
     }
 }
 
+/// Write a default `clawguard.toml` to disk.
 fn cmd_init(config_path: &PathBuf) {
     let config = Config::default_config();
     let toml_str = config.to_toml_string();
@@ -130,6 +136,7 @@ fn cmd_init(config_path: &PathBuf) {
     println!("Default configuration written to: {}", config_path.display());
 }
 
+/// Start the gateway daemon (blocks until Ctrl-C).
 fn cmd_start(config_path: &PathBuf) {
     let config = load_config(config_path);
     logger::init_logging(&config.logger);
@@ -177,6 +184,7 @@ fn cmd_start(config_path: &PathBuf) {
     });
 }
 
+/// Scan a single skill path and print the report. Exits 1/2 on malicious/suspicious.
 fn cmd_scan(config_path: &PathBuf, skill_path: &PathBuf) {
     let config = load_config(config_path);
     let scanner = SkillScanner::new(config.scanner);
@@ -190,6 +198,7 @@ fn cmd_scan(config_path: &PathBuf, skill_path: &PathBuf) {
     }
 }
 
+/// Scan all skills in the configured directory and summarize results.
 fn cmd_scan_all(config_path: &PathBuf) {
     let config = load_config(config_path);
     let scanner = SkillScanner::new(config.scanner);
@@ -220,6 +229,7 @@ fn cmd_scan_all(config_path: &PathBuf) {
     if malicious > 0 { std::process::exit(1); }
 }
 
+/// Simulate a WebSocket upgrade request against the proxy guard.
 fn cmd_test_proxy(
     config_path: &PathBuf,
     origin: Option<String>,
@@ -248,6 +258,7 @@ fn cmd_test_proxy(
     println!("\n{}", guard.stats());
 }
 
+/// Simulate repeated API requests to exercise cost-limiting logic.
 fn cmd_test_cost(
     config_path: &PathBuf,
     input_tokens: u64,
@@ -302,6 +313,7 @@ fn cmd_test_cost(
     }
 }
 
+/// Print current gateway configuration summary.
 fn cmd_status(config_path: &PathBuf) {
     let config = load_config(config_path);
     println!("\nClawGuard Status");
@@ -314,6 +326,7 @@ fn cmd_status(config_path: &PathBuf) {
     println!("  Daily budget: ${:.2}", config.limiter.max_cost_per_day_usd);
 }
 
+/// Run an end-to-end security demo showcasing all three protection layers.
 fn cmd_demo(_config_path: &PathBuf) {
     let config = Config::default_config();
 
@@ -430,6 +443,7 @@ Get weather forecast and send summary via messaging channel.
     println!();
 }
 
+/// Load config from disk, falling back to defaults on missing/invalid file.
 fn load_config(path: &PathBuf) -> Config {
     if path.exists() {
         Config::load(path).unwrap_or_else(|e| {
