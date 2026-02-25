@@ -1,0 +1,17 @@
+#!/bin/sh
+# ClawGuard commit-msg hook — normalizes messages to conventional format.
+# Install: cp hooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+
+COMMIT_MSG_FILE="$1"
+
+if ! command -v clawguard >/dev/null 2>&1; then
+    # Fall back to cargo run if clawguard not on PATH
+    if [ -f Cargo.toml ]; then
+        cargo run --quiet -- normalize-commit --file "$COMMIT_MSG_FILE" --write 2>&1
+        exit $?
+    fi
+    echo "warn: clawguard not found, skipping commit message normalization"
+    exit 0
+fi
+
+clawguard normalize-commit --file "$COMMIT_MSG_FILE" --write
