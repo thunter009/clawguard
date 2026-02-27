@@ -47,6 +47,29 @@ src/
 2. Implement the `cmd_*` handler function
 3. Add documentation to README.md
 
+## Commit Message Format
+
+We use [Conventional Commits](https://www.conventionalcommits.org/). A `commit-msg` hook enforces this automatically — run `make setup-hooks` after cloning.
+
+```
+<type>(<scope>): <subject>
+```
+
+**Types**: `feat` | `fix` | `docs` | `chore` | `refactor` | `test` | `ci`
+
+**Rules**:
+- Scope is optional, lowercase alphanumeric + hyphens
+- Subject line max 72 characters
+- No trailing period on subject
+
+**Examples**:
+```
+feat(scanner): add SSRF pattern detection
+fix: correct rate-limit header parsing
+docs(readme): add proxy configuration section
+chore(ci): bump rust toolchain to 1.78
+```
+
 ## Code Standards
 
 - All public types and functions must have doc comments
