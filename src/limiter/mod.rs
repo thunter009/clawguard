@@ -1,9 +1,9 @@
 use crate::config::LimiterConfig;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
-use tracing::{info, warn, error};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use tracing::{error, info, warn};
 
 /// Tracks API usage and enforces spending limits
 pub struct CostLimiter {
@@ -83,7 +83,7 @@ pub enum LimitResult {
     },
     Blocked(LimitReason),
     Warning {
-        estimated_cost_usd: f64,
+        _estimated_cost_usd: f64,
         daily_total_usd: f64,
         reason: String,
     },
@@ -231,8 +231,7 @@ impl CostLimiter {
         let budget_remaining = self.config.max_cost_per_day_usd - current_daily_usd;
 
         // 6. Check warning threshold
-        let usage_percent =
-            (current_daily_usd / self.config.max_cost_per_day_usd) * 100.0;
+        let usage_percent = (current_daily_usd / self.config.max_cost_per_day_usd) * 100.0;
         if usage_percent >= self.config.alert_threshold_percent {
             warn!(
                 spent = format!("${:.4}", current_daily_usd),
@@ -241,7 +240,7 @@ impl CostLimiter {
                 "⚠️  Budget alert threshold reached!"
             );
             return LimitResult::Warning {
-                estimated_cost_usd: request_cost,
+                _estimated_cost_usd: request_cost,
                 daily_total_usd: current_daily_usd,
                 reason: format!(
                     "Budget usage at {:.1}% (${:.4} / ${:.2})",
@@ -413,8 +412,10 @@ mod tests {
         }
         // At some point it should have blocked
         let stats = limiter.stats();
-        assert!(stats.total_blocked > 0 || stats.daily_cost_usd >= 0.5,
-            "Should have either blocked or hit warning threshold");
+        assert!(
+            stats.total_blocked > 0 || stats.daily_cost_usd >= 0.5,
+            "Should have either blocked or hit warning threshold"
+        );
     }
 
     #[test]
