@@ -19,8 +19,39 @@ cargo test
 4. Run tests: `cargo test`
 5. Run clippy: `cargo clippy -- -D warnings`
 6. Format: `cargo fmt`
-7. Commit with a clear message
+7. Commit using [conventional commit](#commit-messages) format
 8. Open a Pull Request
+
+## Commit Messages
+
+All commits must follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+type(scope): description
+```
+
+**Valid types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`
+
+Rules:
+- Subject line max 72 characters
+- Lowercase type and description start
+- No trailing period on subject line
+- Body and trailers separated by blank line
+
+The `normalize-commit` command auto-fixes common issues:
+
+```bash
+clawguard normalize-commit "Add new Feature."
+# -> feat: add new feature
+```
+
+### Hook installation
+
+```bash
+cp hooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+```
+
+The hook runs `clawguard normalize-commit --file <msg> --write` on every commit.
 
 ## Project Structure
 
@@ -30,6 +61,7 @@ src/
   config/mod.rs    # TOML config parsing and defaults
   proxy/mod.rs     # WebSocket origin validation (CVE-2026-25253)
   scanner/mod.rs   # Skill static analysis and threat detection
+  commit/mod.rs    # Commit message normalizer (conventional commits)
   limiter/mod.rs   # API token/cost rate limiting
   logger/mod.rs    # Structured audit logging
 ```

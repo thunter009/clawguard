@@ -62,6 +62,7 @@ Commands:
   test-proxy  Test WebSocket validation with a simulated request
   test-cost   Simulate API cost tracking
   status      Show current configuration
+  normalize-commit  Normalize a commit message to conventional format
   demo        Run the full security demonstration
 
 Options:
@@ -102,6 +103,22 @@ clawguard test-proxy --origin https://evil-site.com
 clawguard test-proxy --origin http://localhost
 ```
 
+### Normalize commit messages
+
+```bash
+clawguard normalize-commit "Add New Feature."
+# -> feat: add new feature
+
+# Normalize in-place (for git hooks)
+clawguard normalize-commit --file .git/COMMIT_EDITMSG --write
+```
+
+Install the included git hook to auto-normalize on every commit:
+
+```bash
+cp hooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+```
+
 ## Configuration
 
 Copy `clawguard.example.toml` to `clawguard.toml` and edit. Key settings:
@@ -132,6 +149,7 @@ src/
   config/mod.rs      TOML configuration parsing and defaults
   proxy/mod.rs       WebSocket origin validation and connection guard
   scanner/mod.rs     Skill static analysis and threat pattern matching
+  commit/mod.rs      Commit message normalizer (conventional commits)
   limiter/mod.rs     API token counting and cost budget enforcement
   logger/mod.rs      Structured audit logging
 ```
