@@ -234,7 +234,11 @@ impl WebSocketGuard {
         ProxyStats {
             total_allowed: self.total_allowed.load(Ordering::Relaxed),
             total_blocked: self.total_blocked.load(Ordering::Relaxed),
-            active_connections: self.connections.iter().map(|e| e.count.load(Ordering::Relaxed)).sum(),
+            active_connections: self
+                .connections
+                .iter()
+                .map(|e| e.count.load(Ordering::Relaxed))
+                .sum(),
         }
     }
 }
@@ -247,7 +251,6 @@ pub struct RequestInfo {
     pub query_string: Option<String>,
     pub headers: Vec<(String, String)>,
     pub path: String,
-    pub method: String,
 }
 
 impl RequestInfo {
@@ -262,7 +265,6 @@ impl RequestInfo {
                 ("Connection".to_string(), "Upgrade".to_string()),
             ],
             path: path.to_string(),
-            method: "GET".to_string(),
         }
     }
 }
@@ -318,11 +320,7 @@ mod tests {
     #[test]
     fn test_blocks_disallowed_origin() {
         let guard = WebSocketGuard::new(test_config());
-        let req = RequestInfo::new_test(
-            "192.168.1.1",
-            Some("https://evil-attacker.com"),
-            "/ws",
-        );
+        let req = RequestInfo::new_test("192.168.1.1", Some("https://evil-attacker.com"), "/ws");
         match guard.validate_request(&req) {
             ValidationResult::Blocked(BlockReason::DisallowedOrigin(_)) => {}
             other => panic!("Expected DisallowedOrigin block, got {:?}", other),
@@ -383,7 +381,6 @@ mod tests {
                 ("Connection".to_string(), "Upgrade".to_string()),
             ],
             path: "/ws".to_string(),
-            method: "GET".to_string(),
         };
 
         // Should be blocked at origin check
