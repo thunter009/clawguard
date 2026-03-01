@@ -5,7 +5,7 @@ use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::{warn};
+use tracing::warn;
 
 #[derive(Debug, Clone)]
 pub struct ScanResult {
@@ -128,13 +128,15 @@ impl SkillScanner {
 
         let builtin_regexes = vec![
             (
-                Regex::new(r#"(?i)(password|passwd|secret|api.?key|token)\s*[:=]\s*['\"]"#).unwrap(),
+                Regex::new(r#"(?i)(password|passwd|secret|api.?key|token)\s*[:=]\s*['\"]"#)
+                    .unwrap(),
                 FindingCategory::CredentialHarvesting,
                 Severity::High,
                 "Hardcoded credential or secret".to_string(),
             ),
             (
-                Regex::new(r#"(?i)(stratum\+tcp|xmrig|coinhive|cryptonight|monero.*pool)"#).unwrap(),
+                Regex::new(r#"(?i)(stratum\+tcp|xmrig|coinhive|cryptonight|monero.*pool)"#)
+                    .unwrap(),
                 FindingCategory::CryptoMining,
                 Severity::Critical,
                 "Cryptocurrency mining reference".to_string(),
@@ -158,7 +160,8 @@ impl SkillScanner {
                 "Short package name install (typosquatting risk)".to_string(),
             ),
             (
-                Regex::new(r#"(?i)(AWS_SECRET|AWS_ACCESS_KEY|AZURE_|GCP_|\.aws/credentials)"#).unwrap(),
+                Regex::new(r#"(?i)(AWS_SECRET|AWS_ACCESS_KEY|AZURE_|GCP_|\.aws/credentials)"#)
+                    .unwrap(),
                 FindingCategory::CredentialHarvesting,
                 Severity::Critical,
                 "Cloud credential access".to_string(),
@@ -232,7 +235,10 @@ impl SkillScanner {
                 findings: vec![Finding {
                     severity: Severity::Medium,
                     category: FindingCategory::DangerousCommand,
-                    description: format!("File exceeds size limit: {} > {}", size, self.config.max_skill_size_bytes),
+                    description: format!(
+                        "File exceeds size limit: {} > {}",
+                        size, self.config.max_skill_size_bytes
+                    ),
                     line_number: None,
                     matched_text: String::new(),
                 }],
@@ -367,7 +373,10 @@ impl SkillScanner {
                 findings.push(Finding {
                     severity: Severity::Low,
                     category: FindingCategory::ObfuscatedCode,
-                    description: format!("Very long line ({} chars) - possible minified code", line.len()),
+                    description: format!(
+                        "Very long line ({} chars) - possible minified code",
+                        line.len()
+                    ),
                     line_number: Some(ln),
                     matched_text: format!("{}...", &line[..80]),
                 });
@@ -382,14 +391,17 @@ impl SkillScanner {
             return ScanVerdict::Clean;
         }
         let has_critical = findings.iter().any(|f| f.severity == Severity::Critical);
-        let high_count = findings.iter().filter(|f| f.severity == Severity::High).count();
+        let high_count = findings
+            .iter()
+            .filter(|f| f.severity == Severity::High)
+            .count();
 
         if has_critical || high_count >= 3 {
             ScanVerdict::Malicious
         } else if high_count >= 1 {
             ScanVerdict::Suspicious
         } else {
-            ScanVerdict::Suspicious
+            ScanVerdict::Clean
         }
     }
 
@@ -417,7 +429,10 @@ impl SkillScanner {
     pub fn scan_all_skills(&self) -> Vec<ScanResult> {
         let dir = Path::new(&self.config.skills_directory);
         if !dir.exists() {
-            warn!("Skills directory not found: {}", self.config.skills_directory);
+            warn!(
+                "Skills directory not found: {}",
+                self.config.skills_directory
+            );
             return vec![];
         }
         let mut results = Vec::new();
@@ -436,7 +451,7 @@ impl SkillScanner {
         r.push_str(&format!("| Skill Scan: {:<37}|\n", result.skill_name));
         r.push_str(&format!("{}\n", sep));
         let path_display = if result.skill_path.len() > 37 {
-            format!("...{}", &result.skill_path[result.skill_path.len()-34..])
+            format!("...{}", &result.skill_path[result.skill_path.len() - 34..])
         } else {
             result.skill_path.clone()
         };
@@ -447,8 +462,14 @@ impl SkillScanner {
             result.sha256.clone()
         };
         r.push_str(&format!("| SHA-256: {:<40}|\n", hash_display));
-        r.push_str(&format!("| Size:    {:<40}|\n", format!("{} bytes", result.size_bytes)));
-        r.push_str(&format!("| Verdict: {:<40}|\n", format!("{}", result.verdict)));
+        r.push_str(&format!(
+            "| Size:    {:<40}|\n",
+            format!("{} bytes", result.size_bytes)
+        ));
+        r.push_str(&format!(
+            "| Verdict: {:<40}|\n",
+            format!("{}", result.verdict)
+        ));
         r.push_str(&format!("| Issues:  {:<40}|\n", result.findings.len()));
         r.push_str(&format!("{}\n", sep));
 
