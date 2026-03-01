@@ -1,15 +1,16 @@
+mod commit;
 mod config;
-mod proxy;
-mod scanner;
 mod limiter;
 mod logger;
+mod proxy;
+mod scanner;
 mod server;
 
 use clap::{Parser, Subcommand};
 use config::Config;
-use proxy::{WebSocketGuard, RequestInfo, ValidationResult};
-use scanner::SkillScanner;
 use limiter::CostLimiter;
+use proxy::{RequestInfo, ValidationResult, WebSocketGuard};
+use scanner::SkillScanner;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -90,6 +91,25 @@ enum Commands {
 
     /// Run the full security demo
     Demo,
+
+    /// Normalize a commit message to conventional format
+    NormalizeCommit {
+        /// Read message from file (e.g. .git/COMMIT_EDITMSG)
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+
+        /// Read message from argument
+        #[arg(short, long)]
+        message: Option<String>,
+
+        /// Write normalized message back to file (requires --file)
+        #[arg(short, long)]
+        write: bool,
+
+        /// Require these trailers (comma-separated)
+        #[arg(long)]
+        require_trailers: Option<String>,
+    },
 }
 
 fn main() {
@@ -114,6 +134,12 @@ fn main() {
         } => cmd_test_cost(&cli.config, input_tokens, output_tokens, count, job),
         Commands::Status => cmd_status(&cli.config),
         Commands::Demo => cmd_demo(&cli.config),
+        Commands::NormalizeCommit {
+            file,
+            message,
+            write,
+            require_trailers,
+        } => cmd_normalize_commit(file, message, write, require_trailers),
     }
 }
 
@@ -428,6 +454,64 @@ Get weather forecast and send summary via messaging channel.
     println!("    - Obfuscated payload detection");
     println!("  ========================================================");
     println!();
+}
+
+fn cmd_normalize_commit(
+    file: Option<PathBuf>,
+    message: Option<String>,
+    write: bool,
+    require_trailers: Option<String>,
+) {
+    let raw = if let Some(ref path) = file {
+        std::fs::read_to_string(path).unwrap_or_else(|e| {
+            eprintln!("Failed to read {}: {}", path.display(), e);
+            std::process::exit(1);
+        })
+    } else if let Some(ref msg) = message {
+        msg.clone()
+    } else {
+        eprintln!("Provide --file or --message");
+        std::process::exit(1);
+    };
+
+    if let Some(ref trailers) = require_trailers {
+        let required: Vec<&str> = trailers.split(',').map(|s| s.trim()).collect();
+        let missing = commit::validate_trailers(&raw, &required);
+        if !missing.is_empty() {
+            eprintln!("Missing required trailers: {}", missing.join(", "));
+            std::process::exit(1);
+        }
+    }
+
+    match commit::normalize(&raw) {
+        Ok(result) => {
+            if result.changes.is_empty() {
+                println!("Already normalized.");
+            } else {
+                println!("Normalized ({} changes):", result.changes.len());
+                print!("{}", result);
+            }
+
+            if write {
+                if let Some(ref path) = file {
+                    std::fs::write(path, &result.normalized).unwrap_or_else(|e| {
+                        eprintln!("Failed to write {}: {}", path.display(), e);
+                        std::process::exit(1);
+                    });
+                    println!("Written to {}", path.display());
+                } else {
+                    eprintln!("--write requires --file");
+                    std::process::exit(1);
+                }
+            } else {
+                println!("\n{}", result.normalized);
+            }
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
 
 fn load_config(path: &PathBuf) -> Config {
