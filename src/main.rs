@@ -1,3 +1,17 @@
+//! ClawGuard — security gateway for OpenClaw.
+//!
+//! Protects against WebSocket hijacking (CVE-2026-25253), malicious skills
+//! on ClawHub, and runaway API costs from misconfigured cron jobs.
+//!
+//! # Modules
+//!
+//! - [`config`] — TOML configuration loading and defaults
+//! - [`proxy`] — WebSocket origin validation guard
+//! - [`scanner`] — static + embedding-based skill analysis
+//! - [`limiter`] — rolling-window token & cost rate limiting
+//! - [`logger`] — structured audit logging via `tracing`
+//! - [`server`] — axum HTTP server, reverse proxy, and API endpoints
+
 mod config;
 mod proxy;
 mod scanner;

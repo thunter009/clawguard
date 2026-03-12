@@ -1,3 +1,9 @@
+//! WebSocket origin validation guard.
+//!
+//! Mitigates CVE-2026-25253 by validating the `Origin` header on WebSocket
+//! upgrade requests, blocking token leakage in URLs, enforcing per-IP
+//! connection limits, and rejecting suspicious headers.
+
 use crate::config::ProxyConfig;
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -11,6 +17,7 @@ pub enum ValidationResult {
     Blocked(BlockReason),
 }
 
+/// Reason a WebSocket request was blocked.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum BlockReason {
