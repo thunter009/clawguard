@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Axum HTTP reverse proxy with `/health` endpoint, origin validation, and cost-limiting middleware
+- `POST /scan` endpoint — embedding-based content injection detection via Ollama + cosine similarity scoring
+- `POST /route` endpoint — source-aware model selection with internal/external routing rules
+- `[content_scan]` config section (Ollama host, model, similarity threshold)
+- `[source_routing]` config section (per-source model mappings with internal/external rules)
+
 ## [0.1.0] - 2026-02-06
 
 ### Added
