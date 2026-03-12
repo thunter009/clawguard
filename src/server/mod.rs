@@ -1,3 +1,11 @@
+//! Axum HTTP server with reverse proxy, content scanning, and model routing.
+//!
+//! Routes:
+//! - `GET /health` — liveness check
+//! - `POST /scan` — embedding-based injection detection
+//! - `POST /route` — source-aware model selection
+//! - fallback — origin validation + cost limiting + reverse proxy to upstream
+
 use crate::config::Config;
 use crate::limiter::{CostLimiter, LimitResult};
 use crate::proxy::{RequestInfo, ValidationResult, WebSocketGuard};
