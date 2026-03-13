@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# commit-msg hook: enforce conventional commit format
+# Format: type(scope): description   OR   type: description
+#
+# Allowed types: feat, fix, refactor, docs, test, chore, ci, perf, style, build
+
+set -euo pipefail
+
+MSG_FILE="$1"
+MSG=$(head -1 "$MSG_FILE")
+
+# Skip merge commits
+if echo "$MSG" | grep -qE '^Merge '; then
+  exit 0
+fi
+
+TYPES="feat|fix|refactor|docs|test|chore|ci|perf|style|build"
+PATTERN="^($TYPES)(\([a-zA-Z0-9_-]+\))?: .+"
+
+if ! echo "$MSG" | grep -qE "$PATTERN"; then
+  echo "ERROR: commit message does not follow conventional format"
+  echo ""
+  echo "  Expected: type(scope): description"
+  echo "  Examples:"
+  echo "    feat(scanner): add regex threat detection"
+  echo "    fix: correct off-by-one in rate limiter"
+  echo "    docs: update contributing guidelines"
+  echo ""
+  echo "  Allowed types: feat, fix, refactor, docs, test, chore, ci, perf, style, build"
+  echo "  Scope is optional."
+  exit 1
+fi

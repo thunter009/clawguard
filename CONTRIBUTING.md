@@ -19,8 +19,9 @@ cargo test
 4. Run tests: `cargo test`
 5. Run clippy: `cargo clippy -- -D warnings`
 6. Format: `cargo fmt`
-7. Commit with a clear message
-8. Open a Pull Request
+7. Install hooks: `make setup-hooks`
+8. Commit using conventional format (see below)
+9. Open a Pull Request
 
 ## Project Structure
 
@@ -46,6 +47,31 @@ src/
 1. Add a variant to the `Commands` enum in `main.rs`
 2. Implement the `cmd_*` handler function
 3. Add documentation to README.md
+
+## Commit Message Format
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/).
+A `commit-msg` hook validates the format automatically.
+
+```
+type(scope): description
+```
+
+- **type** (required): `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`, `perf`, `style`, `build`
+- **scope** (optional): module name, e.g. `scanner`, `proxy`, `config`
+- **description** (required): lowercase, imperative summary
+
+Examples:
+```
+feat(scanner): add regex threat detection
+fix: correct off-by-one in rate limiter
+docs: update contributing guidelines
+```
+
+Install the hook:
+```bash
+make setup-hooks
+```
 
 ## Code Standards
 
