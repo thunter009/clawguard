@@ -3,8 +3,8 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 /// Initialize the logging system
 pub fn init_logging(config: &LoggerConfig) {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(&config.level));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.level));
 
     let subscriber = fmt()
         .with_env_filter(filter)

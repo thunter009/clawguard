@@ -298,7 +298,10 @@ log_costs = {log_costs}
             up_host = self.general.upstream_host,
             up_port = self.general.upstream_port,
             val_origin = self.proxy.validate_origin,
-            origins = self.proxy.allowed_origins.iter()
+            origins = self
+                .proxy
+                .allowed_origins
+                .iter()
                 .map(|o| format!("\"{}\"", o))
                 .collect::<Vec<_>>()
                 .join(", "),
@@ -311,11 +314,17 @@ log_costs = {log_costs}
             block_danger = self.scanner.block_dangerous,
             max_size = self.scanner.max_skill_size_bytes,
             block_obf = self.scanner.block_obfuscated,
-            danger_patterns = self.scanner.dangerous_patterns.iter()
+            danger_patterns = self
+                .scanner
+                .dangerous_patterns
+                .iter()
                 .map(|p| format!("    \"{}\"", p.replace('\\', "\\\\")))
                 .collect::<Vec<_>>()
                 .join(",\n"),
-            exfil_patterns = self.scanner.exfiltration_patterns.iter()
+            exfil_patterns = self
+                .scanner
+                .exfiltration_patterns
+                .iter()
                 .map(|p| format!("    \"{}\"", p.replace('\\', "\\\\")))
                 .collect::<Vec<_>>()
                 .join(",\n"),
