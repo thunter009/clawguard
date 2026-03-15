@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# commit-msg hook: normalize + validate conventional commit messages
+# Falls back to clawguard normalize-commit if available
+
+COMMIT_MSG_FILE="$1"
+MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Skip merge commits
+if echo "$MSG" | head -1 | grep -qE '^Merge '; then
+    exit 0
+fi
+
+# Try clawguard normalize-commit first
+if command -v clawguard &>/dev/null; then
+    NORMALIZED=$(echo "$MSG" | clawguard normalize-commit 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$NORMALIZED" ]; then
+        echo "$NORMALIZED" > "$COMMIT_MSG_FILE"
+        exit 0
+    fi
+fi
+
+# Basic validation fallback: require conventional commit format
+if ! echo "$MSG" | head -1 | grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+'; then
+    echo "commit-msg: message must follow conventional commits format" >&2
+    echo "  e.g. feat(scope): add new feature" >&2
+    exit 1
+fi
