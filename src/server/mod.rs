@@ -153,10 +153,7 @@ fn resolve_model_for_source(
 }
 
 /// POST /route - source-aware model routing decision
-async fn route_model(
-    State(state): State<Arc<AppState>>,
-    body: Bytes,
-) -> impl IntoResponse {
+async fn route_model(State(state): State<Arc<AppState>>, body: Bytes) -> impl IntoResponse {
     let req: RouteRequest = match serde_json::from_slice(&body) {
         Ok(value) => value,
         Err(_) => {
@@ -180,10 +177,7 @@ async fn route_model(
 }
 
 /// Fallback handler: origin validation → cost limiting → reverse proxy
-async fn proxy_handler(
-    State(state): State<Arc<AppState>>,
-    req: Request<Body>,
-) -> Response<Body> {
+async fn proxy_handler(State(state): State<Arc<AppState>>, req: Request<Body>) -> Response<Body> {
     let remote_ip = req
         .headers()
         .get("x-forwarded-for")
@@ -212,7 +206,7 @@ async fn proxy_handler(
         query_string,
         headers,
         path: req.uri().path().to_string(),
-        method: req.method().to_string(),
+        _method: req.method().to_string(),
     };
 
     match state.guard.validate_request(&req_info) {
