@@ -71,7 +71,11 @@ impl ContentScanner {
             return vec![];
         }
         match fs::read_to_string(path) {
-            Ok(data) => data.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty() && !l.starts_with('#')).collect(),
+            Ok(data) => data
+                .lines()
+                .map(|l| l.trim().to_string())
+                .filter(|l| !l.is_empty() && !l.starts_with('#'))
+                .collect(),
             Err(_) => vec![],
         }
     }
