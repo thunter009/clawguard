@@ -1,3 +1,8 @@
+//! Structured audit logging via `tracing`.
+//!
+//! Initializes a `tracing-subscriber` with env-filter support and defines
+//! [`SecurityEvent`] variants for consistent audit log output.
+
 use crate::config::LoggerConfig;
 use tracing_subscriber::{fmt, EnvFilter};
 

@@ -1,3 +1,9 @@
+//! Static and heuristic skill scanner.
+//!
+//! Scans skill files (scripts, configs) for dangerous patterns, data
+//! exfiltration indicators, obfuscated payloads, and credential harvesting.
+//! Produces a [`ScanResult`] with a severity-based [`ScanVerdict`].
+
 pub mod content;
 
 use crate::config::ScannerConfig;
@@ -5,8 +11,9 @@ use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::{warn};
+use tracing::warn;
 
+/// Result of scanning a single skill file or directory.
 #[derive(Debug, Clone)]
 pub struct ScanResult {
     pub skill_path: String,
@@ -17,6 +24,7 @@ pub struct ScanResult {
     pub findings: Vec<Finding>,
 }
 
+/// Overall security verdict for a scanned skill.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScanVerdict {
     Clean,
@@ -38,6 +46,7 @@ impl std::fmt::Display for ScanVerdict {
     }
 }
 
+/// A single security finding within a scanned skill.
 #[derive(Debug, Clone)]
 pub struct Finding {
     pub severity: Severity,
@@ -47,6 +56,7 @@ pub struct Finding {
     pub matched_text: String,
 }
 
+/// Severity level of a security finding.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[allow(dead_code)]
 pub enum Severity {
@@ -69,6 +79,7 @@ impl std::fmt::Display for Severity {
     }
 }
 
+/// Category of threat detected by the scanner.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum FindingCategory {
@@ -97,6 +108,7 @@ impl std::fmt::Display for FindingCategory {
     }
 }
 
+/// Regex-based skill scanner with built-in and configurable pattern sets.
 pub struct SkillScanner {
     config: ScannerConfig,
     dangerous_regexes: Vec<(Regex, String)>,
@@ -105,6 +117,7 @@ pub struct SkillScanner {
 }
 
 impl SkillScanner {
+    /// Create a scanner with compiled regex sets from `config`.
     pub fn new(config: ScannerConfig) -> Self {
         let dangerous_regexes = config
             .dangerous_patterns
@@ -191,6 +204,7 @@ impl SkillScanner {
         }
     }
 
+    /// Scan a single skill file or directory and return findings.
     pub fn scan_skill<P: AsRef<Path>>(&self, path: P) -> ScanResult {
         let path = path.as_ref();
         let skill_name = path
@@ -414,6 +428,7 @@ impl SkillScanner {
         files
     }
 
+    /// Scan every skill in the configured skills directory.
     pub fn scan_all_skills(&self) -> Vec<ScanResult> {
         let dir = Path::new(&self.config.skills_directory);
         if !dir.exists() {
@@ -429,6 +444,7 @@ impl SkillScanner {
         results
     }
 
+    /// Render an ASCII table report for a scan result.
     pub fn format_report(result: &ScanResult) -> String {
         let mut r = String::new();
         let sep = "+--------------------------------------------------+";

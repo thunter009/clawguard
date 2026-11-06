@@ -1,3 +1,9 @@
+//! API cost limiter with rolling-window token counting.
+//!
+//! Enforces per-request, per-minute, per-hour, and daily-budget limits.
+//! Tracks per-job costs to detect wasteful cron patterns (e.g. the $20
+//! overnight heartbeat incident).
+
 use crate::config::LimiterConfig;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -339,6 +345,7 @@ impl CostLimiter {
     }
 }
 
+/// Snapshot of current cost-limiter usage statistics.
 #[derive(Debug, Clone)]
 pub struct CostStats {
     pub daily_cost_usd: f64,

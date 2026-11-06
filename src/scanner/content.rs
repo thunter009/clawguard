@@ -1,14 +1,22 @@
+//! Embedding-based content scanner using Ollama.
+//!
+//! Embeds incoming text via an Ollama model and compares it against a
+//! pre-built threat corpus using cosine similarity. Requests above the
+//! configured threshold are flagged and optionally logged.
+
 use crate::config::ContentScanConfig;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tracing::{info, warn};
 
+/// A labeled threat embedding in the reference corpus.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorpusEntry {
     pub label: String,
     pub embedding: Vec<f64>,
 }
 
+/// Incoming scan request payload (`POST /scan`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanRequest {
     pub content: String,
@@ -16,6 +24,7 @@ pub struct ScanRequest {
     pub source: String,
 }
 
+/// Scan result returned to the caller.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanResponse {
     pub score: f64,
@@ -29,6 +38,7 @@ struct OllamaEmbedResponse {
     embedding: Vec<f64>,
 }
 
+/// Embedding-based content scanner backed by Ollama.
 pub struct ContentScanner {
     config: ContentScanConfig,
     corpus: Vec<CorpusEntry>,
@@ -37,6 +47,7 @@ pub struct ContentScanner {
 }
 
 impl ContentScanner {
+    /// Load corpus and allowlist, initialize HTTP client.
     pub fn new(config: ContentScanConfig) -> Self {
         let corpus = Self::load_corpus(&config.corpus_file);
         let allowlist = Self::load_allowlist(&config.allowlist_file);
@@ -76,6 +87,7 @@ impl ContentScanner {
         }
     }
 
+    /// Embed `req.content`, compare against corpus, return similarity verdict.
     pub async fn scan(&self, req: &ScanRequest) -> ScanResponse {
         // Check allowlist
         if !req.source.is_empty() && self.allowlist.iter().any(|a| req.source.contains(a)) {
@@ -186,6 +198,7 @@ impl ContentScanner {
     }
 }
 
+/// Compute cosine similarity between two equal-length vectors.
 fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;

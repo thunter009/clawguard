@@ -1,3 +1,8 @@
+//! Configuration types and TOML loading for ClawGuard.
+//!
+//! All settings are deserialized from a TOML file. Call [`Config::default_config`]
+//! for secure defaults or [`Config::load`] to read from disk.
+
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
@@ -16,6 +21,7 @@ pub struct Config {
     pub source_routing: Option<SourceRoutingConfig>,
 }
 
+/// Ollama embedding-based content scanner settings.
 #[derive(Debug, Deserialize, Clone)]
 pub struct ContentScanConfig {
     pub enabled: bool,
@@ -41,6 +47,7 @@ fn default_action() -> String {
     "flag".to_string()
 }
 
+/// Source-based model routing configuration.
 #[derive(Debug, Deserialize, Clone)]
 pub struct SourceRoutingConfig {
     pub enabled: bool,
@@ -52,6 +59,7 @@ pub struct SourceRoutingConfig {
     pub internal: Option<SourceRuleConfig>,
 }
 
+/// Per-source routing rule (model override + source list).
 #[derive(Debug, Deserialize, Clone)]
 pub struct SourceRuleConfig {
     #[serde(default)]
